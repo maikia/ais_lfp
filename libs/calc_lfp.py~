@@ -1,0 +1,155 @@
+import numpy as np
+import os.path
+import sys
+sys.path.append('libs/neuroneap') #('../../libs/')
+sys.path.append('mylibs')
+import matplotlib.pylab as plt
+
+# LFP
+from eap import field, cell, graph
+
+## lfp full neuron
+def calc_field(data, record_x_range, record_y_range, n_samp, savename):
+    ext_resist = 3.5 # Ohm.m
+    dt = data['dt']
+    I = data['I']
+    t=data['t']
+    seg_coords=data['seg_coords']
+    xx, yy = field.calc_grid(record_x_range, record_y_range, n_samp)  # define grid
+    v_ext = field.estimate_on_grid(seg_coords, I, xx, yy, eta=ext_resist) # field
+
+    # save calculated lfp
+    np.savez(savename+'.npz', v_ext=v_ext,
+             xx=xx,yy=yy, n_samp=n_samp,
+             dt=dt, x_range = record_x_range, y_range = record_y_range, 
+            t=t)
+   
+
+def get_lfp_data(data, calc_lfp_new, field_size_type):
+    if field_size_type == 'zoom':
+        n_samp = 5  # grid size will be n_samp x n_samp
+        record_x_range = [-10, 0]
+        record_y_range = [-150, 50]
+        savename = 'zoom'
+    elif field_size_type == 'full':
+        n_samp = 5  # grid size will be n_samp x n_samp
+        record_x_range = [-300, 400]
+        record_y_range = [-300, 1200]
+        savename = 'full'
+    else:
+    calc_field(data,record_x_range,record_y_range,n_samp,savename)
+'''
+def get_lfp_data(data_ext):
+    #data_ext = np.load(lfp_file)
+    
+    v_ext = data_ext['v_ext']
+    x_range = data_ext['x_range']
+    y_range = data_ext['y_range']
+    yy = data_ext['yy']
+    xx = data_ext['xx']
+    print data_ext, x_range, y_range
+    return v_ext, x_range, y_range, xx, yy
+'''
+def plot_all_v_ext(v_ext, timeline, color = 'blue', label = '', yzoom = [-100000, 50000],
+                  clean_plot = False):
+    idx = 0
+    xlim = [40,56]
+    scale = 2
+    for i in range(1, np.size(v_ext,1)+1)[::-1]:
+        for j in range(1,np.size(v_ext, 2)+1):
+            idx+=1
+            ax = plt.subplot(np.size(v_ext,1), np.size(v_ext, 2), idx)
+            plt.hlines(0, timeline[0], timeline[-1], linestyles = 'dashed', colors = 'k')
+
+            plt.plot(timeline, v_ext[:,i-1,j-1], color = color, label = label)
+            plt.plot([49, 49], [-0.5*scale,0.5*scale], color='m', lw=2)
+            if i == 1 and j == 5:
+                plt.text(15, 30, u'scale='+str(scale)+r'$\mu$V')
+            #plt.ylim(np.min(v_ext), np.max(v_ext))
+            # Hide the right and top spines
+            #plt.ylim(yzoom)
+            #
+            #print labels
+            #max_y = np.max(np.abs(labels[0]), labels[-1])
+            #plt.xlim([42.001,50])
+            plt.xlim(xlim)
+            if clean_plot:
+                labels=ax.get_yticks().tolist()
+                max_plot = max(np.abs(labels))
+                yzoom = [-max_plot, max_plot]
+                plt.ylim(yzoom)
+                if idx %5 == 1 or idx in [21, 22, 23, 24, 25]:
+                    ax.spines['right'].set_visible(False)
+                    ax.spines['top'].set_visible(False)
+                    if idx %5 == 1:
+                        labels=ax.get_yticks().tolist()
+                        ax.yaxis.set_ticks_position('left')
+                        #labels = [item.get_text() for item in ax.get_yticklabels()]
+                        idx_0 = labels.index(0.0)
+                        labels[1:-1] = ['']*len(labels[1:-1])
+                        labels[idx_0] = 0
+                        ax.set_yticklabels(labels)
+                        
+                        ax.spines['left'].set_visible(False)
+                        ax.set_yticks([]) 
+                    else:
+
+                        ax.spines['left'].set_visible(False)
+                        ax.set_yticks([]) 
+
+                    if idx in [21, 22, 23, 24, 25]:
+                        ax.xaxis.set_ticks_position('bottom')
+                        locs = np.arange(xlim[0],xlim[-1],step=5) # locations
+                        ticks = np.arange(0,np.diff(xlim),step=5)
+                        plt.xticks(locs, ticks)#, rotation="vertical" )
+                        ax.set_xlabel('time (ms)')
+                    else:
+                        ax.spines['bottom'].set_visible(False)
+                        ax.set_xticks([]) 
+                else:
+                    plt.axis('off')
+                plt.tight_layout()
+    plt.subplots_adjust(hspace=0.1, wspace=0.1)
+
+if __name__ == '__main__':
+    # assumes that the data was already simulated
+    simulate_new = False
+    run_original = True # if False, will rund reduced_Nav
+
+    save_dir = '../data/HallermannEtAl2012/'
+
+    if run_original:
+        save_file = save_dir+'data_hallerman_raw_original.npz'
+        postfix0 = ''
+    else:
+        save_file = save_dir+'data_hallerman_raw_redNav.npz'
+    savename = postfix0+'_zoom'
+    data = np.load(save_file)    
+    
+    if simulate_new:
+	    # calc grid for lfp
+	    n_samp = 5  # grid size will be n_samp x n_samp
+	    record_x_range = [-10, 0]
+	    record_y_range = [-150, 50]
+
+	    calc_field(data, record_x_range, record_y_range, n_samp, savename)
+
+    # draw LFP for different models
+    #clean_plot = False
+    #ymax = 
+    lfp_data = np.load('lfp'+savename+'.npz')
+    dt = data['dt']
+    v_ext, x_range, y_range, xx, yy = get_lfp_data(lfp_data)
+    v_ext_um = v_ext/10e2 # change to microvolts
+    timeline = np.arange(0, len(v_ext_um)*dt, dt)
+
+    #if idx == len(lfp_datas) -1:
+    #    clean_plot = True
+    plot_all_v_ext(v_ext_um,timeline, color='k')#, yzoom = yzoom, clean_plot = False)
+    
+    plt.legend(frameon = False, loc = "center left", bbox_to_anchor = (1, 0.5))
+
+    #plt.title(data_type)
+    plt.show()
+
+    plt.savefig('figs/traces_all_models'+data_type+ext)

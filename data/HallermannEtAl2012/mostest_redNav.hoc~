@@ -1,0 +1,17 @@
+xopen("$(NEURONHOME)/lib/hoc/noload.hoc")
+
+
+xopen("28_04_10_num19.hoc")
+
+xopen("Cell parameters.hoc")
+xopen("Cell parameters_noAIS.hoc") 
+xopen("charge.hoc")
+
+parameters()
+geom_nseg()
+init_channels()
+
+t=0
+tstop=60 // it takes time before neuron comes to it's resting state from the beginning of the simulation
+steps_per_ms=40
+dt=0.0125

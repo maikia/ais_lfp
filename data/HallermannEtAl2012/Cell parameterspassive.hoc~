@@ -1,0 +1,84 @@
+load_proc("nrnmainmenu")
+load_file("nrngui.hoc")
+
+access soma
+area(0.5)
+distance()
+
+proc geom_nseg() {
+	soma area(0.5) // make sure diam reflects 3d points
+	forall {nseg = int((L/(0.1*lambda_f(10000))+0.9)/2)*2+1}
+}
+	
+
+//--------------------------------------------------------------
+//  Initialise user-defined membrane parameters 
+// --------------------------------------------------------------
+
+proc parameters() {
+	celsius = 33		
+	Ri = 80	    			
+	Cm = 1.0      		
+	Rm = 15000      	
+	v_init = -85
+	Spinescale = 1.5
+        sheaths		=	10	//number of myelin sheaths 					
+}
+
+proc init_channels() {
+	forall {
+		insert pas 	 
+		Ra=Ri 
+		e_pas=v_init
+		g_pas=1/Rm
+		cm=Cm
+	}
+
+	for i=0,dendNum-1 {
+		dend[i] {
+		
+			g_pas=1/(Rm/spinescale)
+			cm=Cm*spinescale 
+		}			 
+	}
+	
+	for i=0,apicNum-1 {
+		apic[i] {
+		
+			g_pas=1/(Rm/spinescale)
+			cm=Cm*spinescale
+		}			 
+	}
+
+//soma	
+	soma  {nseg=9}
+		
+	
+//collaterals note that axon[0] is AIS
+	for i=1,axonNum-1 {	
+		axon[i]  {
+			g_pas=1/Rm
+
+		}
+	}	
+
+//AIS
+	axon[0]  {nseg=21}
+
+
+
+//main axon: i.e. myelin and nodes
+	for i=0,myNum-1 {
+		my[i] {
+			g_pas=1/(Rm * (sheaths + 1))
+			cm=Cm/(sheaths + 1)			
+		}	
+	}	
+
+	for i=0,myNum-1 {
+		node[i]  {
+			g_pas=1/Rm
+		}
+	}	
+	//forall insert charge_
+}

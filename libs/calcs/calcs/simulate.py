@@ -1,0 +1,201 @@
+# This code is used for simulations of the Hallerman et al neuron
+from neuron import h
+import numpy as np
+import os.path
+import sys
+
+from eap import field, cell, graph
+import matplotlib.pylab as plt
+
+#import mylibs.plot_supp as pls
+ext = '.pdf'
+
+def get_recording_vecs(st):
+    # record voltage in every ais segment (between AP init to the soma)
+    vecs_ais = []
+
+    for sec in cell.h.allsec():
+        if sec.name() == 'axon[0]': # axon[0] is first section of the axon
+            no_segs = sec.nseg
+            if no_segs > 1:
+                centers = np.linspace(0, 1., no_segs-1)
+                centers += centers[1]/2.
+            else:
+                centers = [0.5]
+        
+            for seg_idx in range(0,no_segs-2):
+                # don't take two segments on the edges (neuron specs)
+                temp_axon_v= h.Vector()
+                temp_axon_v.record(eval('h.'+sec.name()+'('+str(centers[seg_idx])+')._ref_v'), sec = eval('h.'+sec.name()))
+                vecs_ais.append(temp_axon_v)
+
+    vec_soma = h.Vector()
+    vec_soma.record(h.soma(0.5)._ref_v, sec=h.soma) # vector for recording voltage at thes soma
+
+    vec_st = h.Vector()
+    vec_st.record(st._ref_i) # vector for recording current
+    return vecs_ais, vec_soma, vec_st
+
+def add_stimulation(st_delay=1, st_dur=3, stim_delay = 5):
+    # create I-clamp stimulation
+    ramp = False
+    st = h.IClamp(0.1, sec = h.soma) # as soma is connected to the axon and the dendrites through 0.5 segment it should not be used for point process
+
+    if not ramp:
+        st.dur = st_dur  # ms
+        st.delay = stim_delay #5.15 # it takes time before neuron comes to it's resting state from the beginning of the simulation
+        st.amp = 1.5 #nA
+        return st
+    else:
+        # add prestep
+        st.delay=0
+        st.dur=1e9
+        st.amp =0 # nA
+        h.tstop = sim_len
+	    
+        ramp_delay_ms = stim_delay
+        ramp_delay = ramp_delay_ms/h.dt
+        min_ramp = 0.
+        max_ramp = 3.
+        ramp_len = 4 # ms
+        ramp_arr = np.zeros(h.tstop/h.dt) # ms
+        ramp_range = [0,ramp_len/h.dt]
+        ramp_arr[ramp_range[0]+ramp_delay:ramp_range[1]+ ramp_delay] = np.linspace(min_ramp,
+		                                                                    max_ramp,
+		                                                                    np.diff(ramp_range))
+        ramp_arr[ramp_range[1]+ ramp_delay:2*(ramp_range[1])+ramp_delay] = np.linspace(max_ramp,
+		                                                                    min_ramp,
+		                                                                    np.diff(ramp_range))
+        # prestep
+        prestep_delay_ms = 30
+        prestep_delay =prestep_delay_ms/h.dt
+        min_prestep = 0.25*min_ramp
+        max_prestep = 0.25*max_ramp
+    
+        stim_vec = h.Vector(ramp_arr)
+        stim_vec.play(st._ref_amp, h.dt)
+        return stim_vec
+       
+def simulate_original_model(data_dir):
+    mostest = os.path.join(data_dir, 'mostest.hoc')
+    h.load_file(mostest)
+
+def simulate_reduced_Nav_model(data_dir):
+    mostest = os.path.join(data_dir, 'mostest_redNav.hoc')
+    h.load_file(mostest)
+
+def get_data(data_dir, simulate_new=True, run_original=True):
+    ''' returns the data from the simulations, depending on the params, it either
+    runs new simulations or not. 
+    run_original = True -> original Hallermann model, 
+                   False -> reduced Nav model'''
+
+    if run_original:
+        save_file = 'data_hallerman_raw_original.npz'
+    else:
+        save_file = 'data_hallerman_raw_redNav.npz'
+    save_file = os.path.join(data_dir, save_file)
+
+    if simulate_new:
+        # params
+        dt = 0.0125 
+        sim_len = 60 # ms
+        stim_delay = 40 # ms
+        stim_dur = 15 # ms
+        postfix = '' 
+        det = True
+
+        if run_original:
+	        simulate_original_model(data_dir) # to simulate original model
+        else:
+	        simulate_reduced_Nav_model(data_dir) # to simulate reduced Nav model
+        st = add_stimulation(st_delay=stim_delay,st_dur=stim_dur, stim_delay=stim_delay)
+        vecs_ais, vec_soma, vec_st = get_recording_vecs(st)
+
+        # simulate the cell
+        cell.initialize(dt=dt)
+        cell.h.finitialize(-85)
+
+        t, I, I_axial = cell.integrate(sim_len, i_axial=True)
+
+        # extract the data
+        v_soma = np.array(vec_soma)
+        h.define_shape()
+        seg_coords = cell.get_seg_coords()
+     
+        # save the data
+        time = (np.arange(len(v_soma))*dt)
+
+        np.savez(save_file, I=I, t=time, I_axial=I_axial, v_soma=v_soma, seg_coords=seg_coords,vecs_ais=vecs_ais, 
+        dt=h.dt, stim_delay=stim_delay)
+
+    data = np.load(save_file)
+
+    return data
+
+if __name__ == '__main__':
+    simulate_new = True # set False if you want to use previously saved simulated previously data
+    run_original = False # if False, will run reduced_Nav
+
+    data = get_data('', simulate_new=simulate_new, run_original=run_original)
+    I = data['I']
+    time = data['t']
+    I_axial = data['I_axial']
+    v_soma = data['v_soma']
+    seg_coords = data['seg_coords']
+    vecs_ais = data['vecs_ais']
+    dt = data['dt']
+    stim_dela = data['stim_delay']
+
+    # plot the data
+
+    # params
+    ext = '.pdf'
+    plot_lim = [39,46] #ms,  x_axis from the peak of the somatic spike
+
+    axon_color = 'teal'
+    soma_color = 'darkorange'
+    mycmap = plt.cm.get_cmap('RdYlGn') # define colormap 
+
+    fig_name = 'AP_soma_axon'
+    ax = plt.subplot(121)
+
+    t = np.linspace(0, time[-1]-time[0], len(time))
+    plt.plot(t, np.array(vecs_ais[-1]),color=axon_color,lw=2, label = 'axon')
+    plt.plot(t, np.array(v_soma), color = soma_color, lw=2, label = 'soma')
+    plt.xlim(plot_lim)
+    plt.ylabel(u'voltage (mV)')
+    plt.xlabel('time (ms)')
+    plt.legend(frameon=False)
+
+    plt.tight_layout()
+    ax.get_xaxis().tick_bottom()
+    ax.get_yaxis().tick_left()
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    if run_original:
+        plt.title('physiological Nav')
+    else:
+        plt.title('reduced Nav')
+
+    # phase plots
+    ax = plt.subplot(122)
+    plt.plot(np.array(vecs_ais[-1])[:-1],np.diff(np.array(vecs_ais[-1])/dt), color=axon_color,lw=2, label = 'axon')
+    plt.plot(np.array(v_soma)[:-1], np.diff(np.array(v_soma)/dt), color = soma_color, lw=2, label = 'soma')
+        
+    plt.xlim(-100, 40)
+
+    plt.tight_layout()
+    plt.xlabel('voltage (mV)')
+    plt.ylabel('dV/dt (mV/ms)')
+    ax.get_xaxis().tick_bottom()
+    ax.get_yaxis().tick_left()
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    plt.show()
+
+    
+    
+
+    
+    
