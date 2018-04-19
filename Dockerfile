@@ -17,7 +17,7 @@ RUN tar xzf $NRN.tar.gz; rm $NRN.tar.gz
 USER root
 RUN apt-get update; apt-get install -y  libncurses5-dev libreadline-dev libgsl0-dev
 
-USER main
+USER $NB_UID
 
 RUN mkdir $VENV; mkdir $VENV/build; mkdir $VENV/bin
 WORKDIR $VENV/build

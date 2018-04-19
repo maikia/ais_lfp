@@ -1,3 +1,5 @@
+[![Binder](https://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/maikia/ais_lfp/master?filepath=index.ipynb)
+
 # Installation
 
 To run the code locally, you need a distribution of scientific Python. We recommend:
