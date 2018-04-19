@@ -8,10 +8,9 @@ USER root
 RUN chown -R ${NB_UID} ${HOME}
 USER ${NB_USER}
 
-#RUN cd $HOME/libs/calcs; python setup.py install --user
-#
-#RUN cd $HOME/libs/neuroneap; python setup.py install --user
-#
+RUN cd $HOME/libs/calcs; python setup.py install --user
+RUN cd $HOME/libs/neuroneap; python setup.py install --user
+
 #USER root
 #RUN pip install numpy matplotlib scipy
 #USER ${NB_USER}
