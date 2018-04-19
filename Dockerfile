@@ -15,8 +15,5 @@ USER root
 RUN pip install numpy matplotlib scipy
 USER ${NB_USER}
 
-#RUN cd $HOME/data/HallermannEtAl2012/; \
-#    nrnivmodl
-
-#WORKDIR $HOME
-
+RUN cd $HOME/data/HallermannEtAl2012/; \
+    nrnivmodl
