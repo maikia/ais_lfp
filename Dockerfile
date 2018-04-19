@@ -1,4 +1,4 @@
-FROM btel/nrnpython:5715b8fef9ed
+FROM btel/nrnpython:nrn7.4py2.7
 
 MAINTAINER telenczuk@unic.cnrs-gif.fr 
 
