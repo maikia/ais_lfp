@@ -1,32 +1,23 @@
-FROM jupyter/scipy-notebook:9f9e5ca8fe5a
+FROM btel/nrnpython:nrn7.4py2.7
 
 MAINTAINER telenczuk@unic.cnrs-gif.fr 
 
-ENV NRN_VER=7.4
-ENV NRN=nrn-$NRN_VER
-ENV VENV=$HOME/neuron
-ENV PATH=$PATH:$VENV/bin
+# Make sure the contents of our repo are in ${HOME}
+COPY . ${HOME}
+USER root
+RUN chown -R ${NB_UID} ${HOME}
+USER ${NB_USER}
 
-RUN mkdir $HOME/packages
+RUN cd $HOME/libs/calcs; python setup.py install --user
 
-WORKDIR $HOME/packages
-RUN wget http://www.neuron.yale.edu/ftp/neuron/versions/v$NRN_VER/$NRN.tar.gz
-RUN tar xzf $NRN.tar.gz; rm $NRN.tar.gz
-
+RUN cd $HOME/libs/neuroneap; python setup.py install --user
 
 USER root
-RUN apt-get update; apt-get install -y  libncurses5-dev libreadline-dev libgsl0-dev
+RUN pip install numpy matplotlib scipy
+USER ${NB_USER}
 
-USER $NB_UID
-
-RUN mkdir $VENV; mkdir $VENV/build; mkdir $VENV/bin
-WORKDIR $VENV/build
-RUN mkdir $NRN; \
-    cd $NRN; \
-    $HOME/packages/$NRN/configure --with-nrnpython=$HOME/anaconda/bin/python --disable-rx3d --without-iv --prefix=$VENV; \
-    make; make install; \
-    cd src/nrnpython; /home/main/anaconda/bin/python setup.py install; \
-    cd $VENV/bin; ln -s ../x86_64/bin/nrnivmodl
+RUN cd $HOME/data/HallermannEtAl2012/; \
+    nrnivmodl
 
 WORKDIR $HOME
 
