@@ -3,11 +3,11 @@ FROM btel/nrnpython:nrn7.4py2.7
 MAINTAINER telenczuk@unic.cnrs-gif.fr 
 
 # Make sure the contents of our repo are in ${HOME}
-#COPY . ${HOME}
-#USER root
-#RUN chown -R ${NB_UID} ${HOME}
-#USER ${NB_USER}
-#
+COPY . ${HOME}
+USER root
+RUN chown -R ${NB_UID} ${HOME}
+USER ${NB_USER}
+
 #RUN cd $HOME/libs/calcs; python setup.py install --user
 #
 #RUN cd $HOME/libs/neuroneap; python setup.py install --user
