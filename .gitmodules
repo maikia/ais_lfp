@@ -1,0 +1,3 @@
+[submodule "libs/neuroneap"]
+	path = libs/neuroneap
+	url = https://github.com/maikia/neuroneap.git

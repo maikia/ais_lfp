@@ -1,4 +1,4 @@
-FROM andrewosh/binder-base
+FROM jupyter/scipy-notebook:9f9e5ca8fe5a
 
 MAINTAINER telenczuk@unic.cnrs-gif.fr 
 
